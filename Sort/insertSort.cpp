@@ -12,22 +12,39 @@ using namespace std;
 空间复杂度 O(1)
 为稳定排序
 */
-void insertSort(vector<int> &arr)
+//插入排序
+void insertion_sort(vector<int> &nums)
 {
-    for (int i = 1; i < arr.size(); i++)
+    for (int k = 1; k < nums.size(); k++)
     {
-        int key = arr[i];
-        int j = i - 1;
-        while (j >= 0 && arr[j] > key)
-        {
-            arr[j + 1] = arr[j];
-            j--;
-        }
-        arr[j + 1] = key;
+        int key = nums[k];
+        int i;
+        for (i = k - 1; i >= 0 && nums[i] > key; i--)
+            nums[i + 1] = nums[i];
+        nums[i + 1] = key;
     }
 }
 
-
+void binary_insertion_sort(vector<int> &nums)
+{
+    for (int k = 1; k < nums.size(); k++)
+    {
+        int key = nums[k];
+        int l = 0, r = k - 1;
+        while (l <= r)
+        {
+            int mid = (l + r) >> 1;
+            if (nums[mid] < key)
+                l = mid + 1;
+            else
+                r = mid - 1;
+        }
+        int i;
+        for (i = k - 1; i >= l; i--)
+            nums[i + 1] = nums[i];
+        nums[i + 1] = key;
+    }
+}
 
 int main()
 {
