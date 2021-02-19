@@ -8,9 +8,10 @@ using namespace std;
 struct TreeNode
 {
     int val;
+    int height;
     struct TreeNode *left;
     struct TreeNode *right;
-    TreeNode(int val) : val(val), left(NULL), right(NULL) {}
+    TreeNode(int val) : val(val), height(1), left(NULL), right(NULL) {}
 };
 
 class AVLTree
@@ -23,17 +24,17 @@ public:
 
     void preTraverse(TreeNode *);              //前序遍历
     void inTraverse(TreeNode *);               //中序遍历AVL树，结果应由大到小
-    TreeNode* insert(TreeNode *, int val);         //插入节点操作
     TreeNode *search(TreeNode *, int val);     //查询操作，找到则返回节点，否则返回NULL
-    TreeNode *deleteNode(TreeNode *, int val); //删除操作
     TreeNode *getRoot() const { return _root; }
+    TreeNode* insertNode(TreeNode *, int val);         //插入节点操作
+    TreeNode *deleteNode(TreeNode *, int val); //删除操作
 
     //AVL树特有的成员变量
-    TreeNode *leftRotate(TreeNode *);    //左旋
-    TreeNode *rightRotate(TreeNode *);   //右旋
+    TreeNode *RR(TreeNode *);    //左旋
+    TreeNode *LL(TreeNode *);   //右旋
+    TreeNode *LR(TreeNode *);   //先左旋再右旋
+    TreeNode *RL(TreeNode *);   //先右旋再左旋
     int getHeight(TreeNode *);           //求树的高度
-    int getBF(TreeNode *);               //求该节点的平衡因子(balanced factor)
-    TreeNode *balanceAdjust(TreeNode *); //AVL树平衡调节
 private:
     void destroyAVLTree(TreeNode *);
 };
@@ -45,7 +46,7 @@ AVLTree::AVLTree(const char *str)
 {
     cout << "AVLTree()" << endl;
     for (int i = 0; str[i] != '\0'; i++)
-        _root = insert(_root, str[i] - 48);
+        _root = insertNode(_root, str[i] - 48);
 }
 
 AVLTree::~AVLTree()
@@ -90,30 +91,6 @@ void AVLTree::inTraverse(TreeNode *TreeNode)
     }
 }
 
-TreeNode* AVLTree::insert(TreeNode *p, int val)
-{
-    if (!p)
-    {
-        TreeNode* node = new TreeNode(val);
-        return node;
-    }
-    else
-    {
-        if (val < p->val)
-        {
-            p->left = insert(p->left, val);
-            return balanceAdjust(p);
-        }   
-        else if (val > p->val)
-        {
-            p->right = insert(p->right, val);
-            return balanceAdjust(p);
-        }
-        else //该节点已经存在
-            return p;
-    }
-}
-
 TreeNode *AVLTree::search(TreeNode *p, int val)
 {
     if (!p)
@@ -126,117 +103,83 @@ TreeNode *AVLTree::search(TreeNode *p, int val)
         return p;
 }
 
-TreeNode *AVLTree::deleteNode(TreeNode *root, int key)
-{
-    //找到该节点,没找到返回NULL
-    if (!root)
-        return NULL;
-    else if (key < root->val)
-    {
-        root->left = deleteNode(root->left, key);
-        return root;
-    }
-    else if (key > root->val)
-    {
-        root->right = deleteNode(root->right, key);
-        return root;
-    }
-    else
-    {
-        //叶子节点
-        if (!root->left && !root->right)
-        {
-            delete root;
-            return NULL;
-        }
-        //只有右子树
-        if (!root->left && root->right)
-        {
-            TreeNode *temp = root->right;
-            delete root;
-            return temp;
-        }
-        //只有左子树
-        else if (!root->right && root->left)
-        {
-            TreeNode *temp = root->left;
-            delete root;
-            return temp;
-        }
-        else
-        {
-            //左右子树均存在
-            TreeNode *temp = root->right;
-            while (temp->left)
-                temp = temp->left;
-            root->val = temp->val;
-            root->right = deleteNode(root->right, temp->val);
-            return root;
-        }
-    }
-}
-
-int AVLTree::getBF(TreeNode *root)
-{
-    if (!root)
-        return 0;
-    return getHeight(root->left) - getHeight(root->right);
-}
 
 int AVLTree::getHeight(TreeNode *root)
 {
     if (!root)
         return 0;
     else
-        return std::max(getHeight(root->left), getHeight(root->right)) + 1;
+        return root->height;
 }
 
-TreeNode *AVLTree::leftRotate(TreeNode *root)
+TreeNode *AVLTree::RR(TreeNode *root)
 {
-    if (!root)
-        return NULL;
-    TreeNode *rchild = root->right;
+    TreeNode* rchild = root->right;
     root->right = rchild->left;
     rchild->left = root;
+    root->height = std::max(getHeight(root->left), getHeight(root->right)) + 1;
+    rchild->height = std::max(getHeight(rchild->left), getHeight(rchild->right)) + 1;
     return rchild;
 }
 
-TreeNode *AVLTree::rightRotate(TreeNode *root)
+TreeNode *AVLTree::LL(TreeNode *root)
 {
-    if (!root)
-        return NULL;
-    TreeNode *lchild = root->left;
+    TreeNode* lchild = root->left;
     root->left = lchild->right;
     lchild->right = root;
+    root->height = std::max(getHeight(root->left), getHeight(root->right)) + 1;
+    lchild->height = std::max(getHeight(lchild->left), getHeight(lchild->right)) + 1;
     return lchild;
 }
 
-TreeNode *AVLTree::balanceAdjust(TreeNode *root)
+TreeNode* AVLTree::LR(TreeNode* root)
 {
-    if (!root)
-        return NULL;
-
-    if (getBF(root) > 1 && getBF(root->left) > 0) //LL旋转
-        return rightRotate(root);
-    else if (getBF(root) > 1 && getBF(root->left) < 0) //LR旋转
-    {
-        TreeNode *lchild = root->left;
-        root->left = leftRotate(lchild);
-        return rightRotate(root);
-    }
-    else if (getBF(root) < -1 && getBF(root->right) < 0) //RR旋转
-        return leftRotate(root);
-    else if (getBF(root) < -1 && getBF(root->right) > 0) // RL旋转
-    {
-        TreeNode *rchild = root->right;
-        root->right = rightRotate(rchild);
-        return leftRotate(root);
-    }
-    else
-    { //不需要进行调整
-        return root;
-    }
+    root->left = RR(root->left);
+    return LL(root);
 }
+
+TreeNode* AVLTree::RL(TreeNode* root)
+{
+    root->right = LL(root->right);
+    return RR(root);
+}
+
+
+TreeNode* AVLTree::insertNode(TreeNode *p, int val)
+{
+    if (!p)
+    {
+        TreeNode* node = new TreeNode(val);
+        return node;    
+    }
+    if (p->val == val)
+    {
+        return p; //AVL树中已经有该节点，不能够再插入
+    }
+    else if (p->val < val)
+    {
+        //向右插入
+        p->right = insertNode(p->right, val);
+        //插入新节点后如果失去平衡则调整
+        if ()
+    }else if (p->val > val)
+    {
+        //向左插入
+        p->left = insertNode(p->left, val);
+        //插入新节点后如果失去平衡则调整
+        
+    }
+    return p;
+}
+
+
+TreeNode *AVLTree::deleteNode(TreeNode *root, int key)
+{
+
+}
+
+
+
 
 /**************************************测试函数****************************************/
 void test1()
@@ -247,7 +190,6 @@ void test1()
     tree.inTraverse(tree.getRoot());
     cout << endl;
     cout << "Height:" << tree.getHeight(tree.getRoot()) << endl;
-    cout << "BF:" << tree.getBF(tree.getRoot()) << endl;
 }
 
 int main()
