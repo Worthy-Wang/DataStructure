@@ -39,6 +39,8 @@ public:
     void right_rotate(TreeNode* n);
     void insert_node(TreeNode*);
     void insert_fixup(TreeNode*);
+    void delete_node(TreeNode*);
+    void delete_fixup(TreeNode*, TreeNode*);
     void preOrder(TreeNode*) const;
     void inOrder(TreeNode*) const;
     TreeNode* getRoot()const { return _root; }
@@ -213,21 +215,159 @@ void RBT::insert_fixup(TreeNode* node)
 
 /*
 删除节点：
-1.删除节点有两个子节点，可以转化成删除单个子节点或者叶子节点的情况；
-2.删除节点有单个子节点，那么待删除节点必为黑色，子节点必为红色，将子节点顶上去，再染成黑色即可；
-3.删除叶子节点，该叶子节点为红色，那么直接删除即可；
-4.删除叶子节点，该叶子节点为黑色，该叶子节点一定有兄弟节点，这种情况比较复杂，需要分情况讨论：
-1）如果兄弟节点为红色，将叶子节点删除后，旋转后。
-2）如果兄弟节点为黑色且为叶子节点，那么将叶子节点删除后，将父节点染黑，兄弟节点染红即可；
-3）如果兄弟节点为黑色且不为叶子节点，那么兄弟节点的孩子一定为红色，又有以下两种情况：
-一.兄弟节点左孩子为红色，经过如下变换：
-二.兄弟节点右孩子为红色，经过如下变换：
+一.删除节点有两个子节点，可以转化成删除单个子节点或者叶子节点的情况；
 
+二.删除节点有单个子节点，那么待删除节点必为黑色，子节点必为红色，将子节点顶上去，再染成黑色即可；
+
+三.删除叶子节点，该叶子节点为红色，那么直接删除即可；
+
+四.删除叶子节点，该叶子节点为黑色，该叶子节点一定有兄弟节点，这种情况比较复杂，需要分情况讨论：（此时只讨论叶子节点在左侧的情况，右侧属于对称情况）
+
+1. 如果兄弟节点为红色，那么将兄弟节点染黑，兄弟节点的左儿子染红，再左转即可。
+
+2. 如果兄弟节点为黑色且为叶子节点，那么将兄弟节点染红，由于此时黑色节点数目不均衡，所以需要再次对父节点进行调整；
+
+3. 如果兄弟节点为黑色且不为叶子节点，那么兄弟节点的孩子一定为红色，又有以下三种情况：
+1）兄弟节点有一个红色右孩子，经过如下变换：
+将父节点的颜色赋值给兄弟节点，再将父节点，兄弟节点的右孩纸颜色染成黑色，最后左旋
+
+2）兄弟节点有一个红色左孩子，经过如下变换：
+将兄弟节点染红，兄弟节点左孩子染黑，最后对兄弟节点右转，也就回到了1）的情况
+
+3）兄弟节点有两个红色孩子，经过如下变换：
+该情况实质上也和情况1）是一样的，将父节点的颜色赋值给兄弟节点，再将父节点，兄弟节点的右孩纸颜色染成黑色，最后左旋
 
 */
 
+void RBT::delete_node(TreeNode* node)
+{
+    //replace代表删除之后顶替上来的节点
+    //parent为replace节点的父节点
+    TreeNode* replace = nullptr, *parent = nullptr;
+    //如果删除的节点有左右孩子，那么找到左子树最大的孩子或者右子树最小的孩子进行替换
+    if (node->left && node->right){
+        TreeNode* succ = nullptr;
+        for (succ = node->left; succ->right; succ = succ->right);
+        node->val = succ->val;
+        delete_node(succ);
+        return;
+    }else{//删除节点为叶子节点 或者 只有一个孩子
+        //如果删除根
+        if (!node->parent){
+            _root = (node->left ? node->left : node->right);
+            replace = _root;
+            if (_root)
+                _root->parent = nullptr;
+        }else{//删除的不是根
+            TreeNode* child = (node->left ? node->left : node->right);
+            if  (node->parent->left == node)
+                node->parent->left = child;
+            else
+                node->parent->right = child;
+            
+            if (child)
+                child->parent = node->parent;
+            replace = child;
+            parent = node->parent;
+        }
+    }
+
+    //如果删除节点为红色，直接结束
+    if (node->color == BLACK)
+        delete_fixup(replace, parent);
+}
 
 
+void RBT::delete_fixup(TreeNode* replace,  TreeNode* parent)
+{
+    TreeNode* brother = nullptr;
+    // 如果顶替结点是黑色结点，并且不是根结点。
+    //由于经过了上面的deleteNode方法，这里面parent是一定不为null的
+    while ((replace == nullptr || replace->color == BLACK) && replace != this->_root){
+        //左孩子位置的所有情况，
+        if (parent->left == replace) {
+            brother = parent->right;
+            // case1 红兄，brother涂黑，parent涂红，parent左旋，replace的兄弟改变了，变成了黑兄的情况
+            if (brother->color == RED) {
+                brother->color = BLACK;
+                parent->color = RED;
+                left_rotate(parent);
+                brother = parent->right;
+            }
+            // 经过上面，不管进没进if，兄弟都成了黑色
+            // case2 黑兄，且兄弟的两个孩子都为黑
+            if ((brother->left == nullptr || brother->left->color == BLACK) && (brother->right == nullptr || brother->right->color == BLACK)) {
+            // 如果parent此时为红，则把brother的黑色转移到parent上
+                if (parent->color == RED) {
+                parent->color = BLACK;
+                brother->color = RED;
+                break;
+            } else {// 如果此时parent为黑，即此时全黑了，则把brother涂红，导致brother分支少一个黑，使整个分支都少了一个黑，需要对parent又进行一轮调整
+                brother->color = RED;
+                replace = parent;
+                parent = replace->parent;
+            }
+        } else {
+            // case3 黑兄，兄弟的左孩子为红色
+            if (brother->left != nullptr && brother->left->color == RED) {
+                brother->left->color = parent->color;
+                parent->color = BLACK;
+                right_rotate(brother);
+                left_rotate(parent);
+            // case4 黑兄，兄弟的右孩子为红色
+            } else if (brother->right != nullptr && brother->right->color == RED) {
+                brother->color = parent->color;
+                parent->color = BLACK;
+                brother->right->color = BLACK;
+                left_rotate(parent);
+            }
+            break;
+        }
+    } else {//对称位置的情况，把旋转方向反回来
+        brother = parent->left;
+        // case1 红兄，brother涂黑，parent涂红，parent左旋，replace的兄弟改变了，变成了黑兄的情况
+        if (brother->color == RED) {
+            brother->color = BLACK;
+            parent->color = RED;
+            right_rotate(parent);
+            brother = parent->left;
+        }
+        // 经过上面，不管进没进if，兄弟都成了黑色
+        // case2 黑兄，且兄弟的两个孩子都为黑
+        if ((brother->left == nullptr || brother->left->color == BLACK)
+            && (brother->right == nullptr || brother->right->color == BLACK)) {
+        // 如果parent此时为红，则把brother的黑色转移到parent上
+            if (parent->color == RED) {
+                parent->color = BLACK;
+                brother->color = RED;
+                break;
+            } else {// 如果此时parent为黑，即此时全黑了，则把brother涂红，导致brother分支少一个黑，使整个分支都少了一个黑，需要对parent又进行一轮调整
+                brother->color = RED;
+                replace = parent;
+                parent = replace->parent;
+                }
+            } else {
+                // case3 黑兄，兄弟的左孩子为红色，右孩子随意
+                if (brother->right != nullptr && brother->right->color == RED) {
+                    brother->right->color = parent->color;
+                    parent->color = BLACK;
+                    left_rotate(brother);
+                    right_rotate(parent);
+                // case4 黑兄，兄弟的右孩子为红色，左孩子随意
+                } else if (brother->left != nullptr && brother->left->color == RED) {
+                    brother->color = parent->color;
+                    parent->color = BLACK;
+                    brother->left->color = BLACK;
+                    right_rotate(parent);
+                }
+                break;
+            }
+        }
+    }
+    //这里可以处理到删除结点为只有一个孩子结点的情况，如果是根，也会将其涂黑。
+    if (replace != nullptr)
+        replace->color = BLACK;
+}
 
 /*******************************测试函数********************************************/
 void test1()
@@ -249,11 +389,25 @@ void test1()
 
 void test2()
 {
+    RBT tree;
+    tree.insert_node(new TreeNode(7));
+    tree.insert_node(new TreeNode(2));
+    tree.insert_node(new TreeNode(3));
+    tree.insert_node(new TreeNode(1));
+    tree.insert_node(new TreeNode(5));
+    tree.insert_node(new TreeNode(6));
+    tree.insert_node(new TreeNode(4));
+    tree.insert_node(new TreeNode(8));
 
+    tree.delete_node(tree.getRoot());
+    cout << "前序遍历:" << endl;
+    tree.preOrder(tree.getRoot());
+    cout << "中序遍历:" << endl;
+    tree.inOrder(tree.getRoot());
 }
 
 int main()
 {
-    test1();
+    test2();
     return 0;
 }
