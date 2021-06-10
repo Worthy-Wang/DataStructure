@@ -14,6 +14,7 @@ vertex : 顶点
 EdgeNode: 边节点
 
 */
+
 using ElemType = char;
 struct EdgeNode
 {
@@ -134,7 +135,7 @@ void Graph::printAdjList()
 }
 
 //Dijkstra算法，本质上还是使用BFS遍历,只是在每一层判断路径和
-int Graph::dijkstra_minDistance(int beg, int end)
+int Graph:: dijkstra_minDistance(int beg, int end)
 {
     vector<int> path;
     path.resize(_vertexNum);
